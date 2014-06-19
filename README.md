@@ -11,3 +11,4 @@ Completing the library, there are several useful classes for classifying and agg
 
 There two simple examples in source.
 
+![Dispatchers synopsis](Dispatchers.svg?raw=true "Dispatchers synopsis")
