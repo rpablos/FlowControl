@@ -47,7 +47,7 @@ public class GaussianDispatcher<T> extends DefaultDispatcher<T> {
 
     @Override
     protected long TimeToWait() {
-        return Math.max(0L, (long) (period*2-movingAverage.getAverage())+(long)(factor*random.nextGaussian()*period));
+        return Math.max(0L, (long) (super._TimeToWait()+(factor*random.nextGaussian()*period)));
     }
     
 }

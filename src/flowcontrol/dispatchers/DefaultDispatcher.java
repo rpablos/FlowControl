@@ -46,7 +46,7 @@ public class DefaultDispatcher<T> implements Dispatcher<T> {
     public DefaultDispatcher(double outputRate, Queue queue) {
         buffer = queue;
         period = 1000.0/outputRate;
-        movingAverage = new MovingAverage(5, (int) period);
+        movingAverage = new MovingAverage((long) period);
     }
     public boolean put(T t) {
         synchronized (buffer) {
@@ -81,11 +81,8 @@ public class DefaultDispatcher<T> implements Dispatcher<T> {
                 buffer.wait();       
         }
         long timeToWait = TimeToWait();
-//         System.out.println("Time to wait: "+timeToWait);
-//         System.out.println("Last Pop: "+lastPopTimeStamp);
-        long currentTime = System.currentTimeMillis();
-        if ((currentTime-lastPopTimeStamp) < timeToWait) {
-//            System.out.println("Sleep: "+timeToWait);
+        long currentTime;
+        while (((currentTime=System.currentTimeMillis())-lastPopTimeStamp) < timeToWait)  {
             Thread.sleep(timeToWait- (currentTime-lastPopTimeStamp));
         }
         T result = buffer.pop();
@@ -96,6 +93,7 @@ public class DefaultDispatcher<T> implements Dispatcher<T> {
 
         
     }
+    @Override
     public T getBlocking(long timeout) throws InterruptedException {
         if (timeout == 0)
             return getBlocking();
@@ -110,8 +108,8 @@ public class DefaultDispatcher<T> implements Dispatcher<T> {
             return null;
         long timeToWait = TimeToWait();
 
-        long currentTime = System.currentTimeMillis();
-        if ((currentTime-lastPopTimeStamp) < timeToWait) {
+        long currentTime;
+        while (( (currentTime=System.currentTimeMillis())-lastPopTimeStamp) < timeToWait) {
             if ((timeout-(currentTime-initTime)) < (timeToWait- (currentTime-lastPopTimeStamp))) {
                 Thread.sleep(Math.max(0,timeout-(currentTime-initTime)));
                 return null;
@@ -130,7 +128,10 @@ public class DefaultDispatcher<T> implements Dispatcher<T> {
     }
     
     protected long TimeToWait() {
-        return Math.max(0L,(long) (period*2-movingAverage.getAverage()));
+        return Math.max(0L,(long) _TimeToWait());
+    }
+    protected double _TimeToWait() {
+        return period*2-movingAverage.getAverage();
     }
     @Override
     public double getOutputRate(){
