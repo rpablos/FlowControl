@@ -46,7 +46,9 @@ public class MovingAverage {
         values[pos] = value;
         pos = (pos+1) % values.length;
     }
-    
+    public int getSize() {
+        return values.length;
+    }
 //    public long getAverage() {
 //        double result = 0;
 //        for (int i = 0; i < values.length; i++) {

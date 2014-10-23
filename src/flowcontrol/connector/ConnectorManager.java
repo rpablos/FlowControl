@@ -95,10 +95,12 @@ public class ConnectorManager<T> {
         @Override
         public void start() {
             stopped = false;
-            if (connectorManagerThread == null || !connectorManagerThread.isAlive()){
-                connectorManagerRunnable = new ConnectorManagerTask();
-                connectorManagerThread = new Thread(connectorManagerRunnable);
-                connectorManagerThread.start();
+            synchronized (connectors) {
+                if (connectorManagerThread == null || !connectorManagerThread.isAlive()){
+                    connectorManagerRunnable = new ConnectorManagerTask();
+                    connectorManagerThread = new Thread(connectorManagerRunnable);
+                    connectorManagerThread.start();
+                }
             }
         }
 
@@ -112,7 +114,7 @@ public class ConnectorManager<T> {
         
     }
     private class ConnectorManagerTask implements Runnable {
-        boolean fin = false;
+        volatile boolean fin = false;
         T t;
         @Override
         public void run() {

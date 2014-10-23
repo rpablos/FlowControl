@@ -19,6 +19,7 @@ package flowcontrol.dispatchers;
 import flowcontrol.DispatcherReader;
 import flowcontrol.DispatcherWriter;
 import flowcontrol.events.DispatcherLossListener;
+import flowcontrol.queues.Queue;
 
 /**
  *
@@ -27,4 +28,5 @@ import flowcontrol.events.DispatcherLossListener;
 public interface Dispatcher<T> extends DispatcherReader<T>, DispatcherWriter<T>{
     public void addDispatcherLossListener(DispatcherLossListener<T> listener);
     public void removeDispatcherLossListener(DispatcherLossListener<T> listener);
+    public Queue<T> getQueue();
 }

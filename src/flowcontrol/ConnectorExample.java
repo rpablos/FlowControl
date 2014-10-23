@@ -34,6 +34,7 @@ public class ConnectorExample {
      * @param args the command line arguments
      */
     public static void main(String[] args) throws InterruptedException  {
+
         final Dispatcher<String> dispatcher = new DefaultDispatcher<>(1);
         final Dispatcher<String> dispatcher2 = new DefaultDispatcher<>(.5);
         ConnectorManager<String> cm = new ConnectorManager<>();
@@ -51,8 +52,11 @@ public class ConnectorExample {
                 System.out.println("Pérdida en el dispatcher 2: "+t);
             }
         });
+        System.out.println("Esquema: Generador-->dispatcher1-->conector-->dispatcher2-->Consumidor");
+        System.out.println("Dispatcher1: "+dispatcher.getOutputRate()+ " objetos/sec. Cola FIFO de "+dispatcher.getQueue().getCapacity()+" elementos.");
+        System.out.println("Dispatcher2: "+dispatcher2.getOutputRate()+ " objetos/sec. Cola FIFO de "+dispatcher2.getQueue().getCapacity()+" elementos.");
         connector.start();
-        
+        System.out.println("Comienzo del conector entre dispatcher1 y dispatcher2");
         new Thread(new Runnable() {
 
             @Override
@@ -60,12 +64,13 @@ public class ConnectorExample {
                 try {
                     Random random = new Random();
                     Thread.sleep(3000);
-                    System.out.println("Comienzo del generador");
+                    long infimo=250,rango=1000;
+                    System.out.println("Comienzo del generador. Generación aleatoria de objetos entre "+infimo+" ms y "+(rango+infimo)+" ms");
                     for (int i = 0; i < 1000; i++) {
 
                         dispatcher.put(""+i);
 
-                        Thread.sleep((long) (random.nextDouble()*1000+250));
+                        Thread.sleep((long) (random.nextDouble()*rango+infimo));
                     }
                 } catch (InterruptedException ex){}
             
@@ -75,7 +80,7 @@ public class ConnectorExample {
 
             @Override
             public void run() {
-                System.out.println("Comienzo del consumidor");
+                System.out.println("Comienzo del consumidor.");
 
                 try {
                 for (int i = 0; i < 1000; i++) {
@@ -86,11 +91,11 @@ public class ConnectorExample {
                 } catch(InterruptedException ex) {}
             }
         }).start();
-        Thread.sleep(30000);
-        System.out.println("Parando conector durante 10 seg");
-        connector.stop();
-        Thread.sleep(10000);
-        connector.start();
+//        Thread.sleep(30000);
+//        System.out.println("Parando conector durante 10 seg");
+//        connector.stop();
+//        Thread.sleep(10000);
+//        connector.start();
     }
     
 }

@@ -20,9 +20,7 @@ import flowcontrol.events.DispatcherLossListener;
 import flowcontrol.queues.FIFOQueueBuffer;
 import flowcontrol.queues.Queue;
 import flowcontrol.util.MovingAverage;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -46,7 +44,7 @@ public class DefaultDispatcher<T> implements Dispatcher<T> {
     public DefaultDispatcher(double outputRate, Queue queue) {
         buffer = queue;
         period = 1000.0/outputRate;
-        movingAverage = new MovingAverage((long) period);
+        movingAverage = new MovingAverage((int) Math.max(8,(int)(quantum*2)),(long) period);
     }
     public boolean put(T t) {
         synchronized (buffer) {
@@ -60,23 +58,22 @@ public class DefaultDispatcher<T> implements Dispatcher<T> {
     }
     
     public T get() {
-        T head = buffer.peekHead();
+        T head;
+        synchronized (buffer) {
+            head = buffer.peekHead();
+        }
         if (head == null)
             return null;
         long timeToWait = TimeToWait();
         long currentTime = System.currentTimeMillis();
         if ((currentTime-lastPopTimeStamp) < timeToWait) 
             return null;
-        T result = buffer.pop();
-        currentTime = System.currentTimeMillis();
-        movingAverage.pushValue(currentTime-lastPopTimeStamp);
-        lastPopTimeStamp = currentTime;
-        return result;
+        return updateAndGet(timeToWait);
     }
     
     public T getBlocking() throws InterruptedException {
-        T head;
         synchronized (buffer) {
+            T head;
             while ((head = buffer.peekHead()) == null)
                 buffer.wait();       
         }
@@ -85,14 +82,25 @@ public class DefaultDispatcher<T> implements Dispatcher<T> {
         while (((currentTime=System.currentTimeMillis())-lastPopTimeStamp) < timeToWait)  {
             Thread.sleep(timeToWait- (currentTime-lastPopTimeStamp));
         }
-        T result = buffer.pop();
-        currentTime = System.currentTimeMillis();
-        movingAverage.pushValue(currentTime-lastPopTimeStamp);
+        return updateAndGet(timeToWait);
+    }
+ 
+    private long error = 0;
+    private T updateAndGet(long timeToWait) {
+        T result;
+        synchronized (buffer) {
+            result = buffer.pop();
+        }
+        long currentTime = System.currentTimeMillis();
+        long realTTW = currentTime-lastPopTimeStamp;
+        
+        error = (realTTW-timeToWait) ;
+
+        movingAverage.pushValue(realTTW);
         lastPopTimeStamp = currentTime;
         return result;
-
-        
     }
+    
     @Override
     public T getBlocking(long timeout) throws InterruptedException {
         if (timeout == 0)
@@ -107,7 +115,6 @@ public class DefaultDispatcher<T> implements Dispatcher<T> {
         if (head == null)
             return null;
         long timeToWait = TimeToWait();
-
         long currentTime;
         while (( (currentTime=System.currentTimeMillis())-lastPopTimeStamp) < timeToWait) {
             if ((timeout-(currentTime-initTime)) < (timeToWait- (currentTime-lastPopTimeStamp))) {
@@ -117,18 +124,11 @@ public class DefaultDispatcher<T> implements Dispatcher<T> {
             else
                 Thread.sleep(timeToWait- (currentTime-lastPopTimeStamp));
         }
-        
-        T result = buffer.pop();
-        currentTime = System.currentTimeMillis();
-        movingAverage.pushValue(currentTime-lastPopTimeStamp);
-        lastPopTimeStamp = currentTime;
-        return result;
-
-        
+        return updateAndGet(timeToWait);
     }
     
     protected long TimeToWait() {
-        return Math.max(0L,(long) _TimeToWait());
+        return Math.max(0L,(long) Math.round(_TimeToWait()-error));
     }
     protected double _TimeToWait() {
         return period*2-movingAverage.getAverage();
@@ -136,6 +136,10 @@ public class DefaultDispatcher<T> implements Dispatcher<T> {
     @Override
     public double getOutputRate(){
         return 1000.0/period;
+    }
+    @Override
+    public Queue<T> getQueue() {
+        return buffer;
     }
     Set<DispatcherLossListener<T>> listeners = null;
     @Override
@@ -159,5 +163,13 @@ public class DefaultDispatcher<T> implements Dispatcher<T> {
                 listener.onLoss(this, t);
             }
         }
+    }
+    
+    private static long quantum;
+    static {
+        long t0 = System.currentTimeMillis(), t1;
+        while ((t1=System.currentTimeMillis()) == t0) ;
+        quantum = t1-t0;
+//        System.out.println("quantum: "+quantum);
     }
 }
