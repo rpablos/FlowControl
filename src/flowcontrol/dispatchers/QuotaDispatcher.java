@@ -40,6 +40,7 @@ public class QuotaDispatcher<T> implements Dispatcher<T> {
     int quota;
     long period;
     TimerTask timerTask;
+    boolean quotaExhausted =false;
 
     public QuotaDispatcher(int quota, Date firstTime, long time, TimeUnit unit,int queuesize) {
         this.queue = new FIFOQueueBuffer<>(queuesize);
@@ -54,6 +55,7 @@ public class QuotaDispatcher<T> implements Dispatcher<T> {
     }
     public void setQuota(int quota) {
         this.quota = quota;
+        quotaExhausted = isQuotaExhausted();
         
     }
     public int getQuota() {
@@ -118,7 +120,8 @@ public class QuotaDispatcher<T> implements Dispatcher<T> {
      */
     @Override
     public boolean put(T t) {
-        if (isQuotaExhausted()) {
+        if (!quotaExhausted && isQuotaExhausted()) {
+            quotaExhausted = true;
             notifyQuotaExhausted();
         }
         synchronized (queue) {
@@ -220,6 +223,7 @@ public class QuotaDispatcher<T> implements Dispatcher<T> {
             synchronized (queue) {
                 consumedUnits = 0;
             }
+            quotaExhausted = false;
             notifyQuotaRenewal();
         }
         
